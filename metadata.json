@@ -1,0 +1,5 @@
+{
+  "name": "MediSync - Hospital Management System",
+  "description": "A comprehensive dashboard for managing patients, doctors, appointments, and more within a hospital. This application provides a clean, intuitive interface for healthcare professionals to streamline their daily workflow.",
+  "requestFramePermissions": []
+}
