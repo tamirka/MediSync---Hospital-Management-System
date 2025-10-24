@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Appointment, Doctor, Patient } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import AppointmentModal from '../components/AppointmentModal';
 
 const getStatusClass = (status: Appointment['status']) => {
   switch (status) {
@@ -24,34 +25,40 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctor, patient }) => {
   const [filter, setFilter] = useState('All');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      let query = supabase.from('appointments').select('*');
+  const fetchAppointments = useCallback(async () => {
+    setLoading(true);
+    let query = supabase.from('appointments').select('*');
 
-      if (doctor) {
-        query = query.eq('doctor_id', doctor.id);
-      }
-      if (patient) {
-        query = query.eq('patient_id', patient.id);
-      }
-      if (filter !== 'All') {
-        query = query.eq('status', filter);
-      }
+    if (doctor) {
+      query = query.eq('doctor_id', doctor.id);
+    }
+    if (patient) {
+      query = query.eq('patient_id', patient.id);
+    }
+    if (filter !== 'All') {
+      query = query.eq('status', filter);
+    }
 
-      const { data, error } = await query.order('date', { ascending: false });
+    const { data, error } = await query.order('date', { ascending: false });
 
-      if (error) {
-        console.error("Error fetching appointments:", error);
-      } else {
-        setAppointments(data as Appointment[]);
-      }
-      setLoading(false);
-    };
-
-    fetchAppointments();
+    if (error) {
+      console.error("Error fetching appointments:", error);
+    } else {
+      setAppointments(data as Appointment[]);
+    }
+    setLoading(false);
   }, [doctor, patient, filter]);
+  
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
+
+  const handleAppointmentScheduled = () => {
+    fetchAppointments();
+    setIsModalOpen(false);
+  };
 
   const getTitle = () => {
     if (doctor) return 'My Appointments';
@@ -63,7 +70,7 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctor, patient }) => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">{getTitle()}</h2>
-        <button className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
+        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
           Schedule New Appointment
         </button>
       </div>
@@ -123,6 +130,11 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctor, patient }) => {
           </table>
         </div>
       </div>
+       <AppointmentModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAppointmentScheduled={handleAppointmentScheduled}
+      />
     </div>
   );
 };

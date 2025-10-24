@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Doctor } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import DoctorModal from '../components/DoctorModal';
 
 const getStatusClass = (status: Doctor['status']) => {
   switch (status) {
@@ -33,26 +34,33 @@ const DoctorCard: React.FC<{ doctor: Doctor }> = ({ doctor }) => (
 const Doctors: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from('doctors').select('*').order('name');
-      if (error) {
-        console.error('Error fetching doctors:', error);
-      } else {
-        setDoctors(data as Doctor[]);
-      }
-      setLoading(false);
-    };
-    fetchDoctors();
+  const fetchDoctors = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('doctors').select('*').order('name');
+    if (error) {
+      console.error('Error fetching doctors:', error);
+    } else {
+      setDoctors(data as Doctor[]);
+    }
+    setLoading(false);
   }, []);
+  
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
+
+  const handleDoctorAdded = () => {
+    fetchDoctors();
+    setIsModalOpen(false);
+  };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Our Doctors</h2>
-        <button className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
+        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
           Add New Doctor
         </button>
       </div>
@@ -66,6 +74,11 @@ const Doctors: React.FC = () => {
           ))}
         </div>
       )}
+      <DoctorModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onDoctorAdded={handleDoctorAdded}
+      />
     </div>
   );
 };

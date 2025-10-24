@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Patient, Doctor } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import useDebounce from '../hooks/useDebounce';
+import PatientModal from '../components/PatientModal';
 
 const getStatusClass = (status: Patient['status']) => {
   switch (status) {
@@ -25,40 +26,46 @@ const Patients: React.FC<PatientsProps> = ({ onViewPatient, doctor }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      setLoading(true);
-      let query = supabase.from('patients').select('*');
-      
-      if (doctor) {
-        query = query.eq('primary_doctor_id', doctor.id);
-      }
+  const fetchPatients = useCallback(async () => {
+    setLoading(true);
+    let query = supabase.from('patients').select('*');
+    
+    if (doctor) {
+      query = query.eq('primary_doctor_id', doctor.id);
+    }
 
-      if (debouncedSearchTerm) {
-        query = query.or(`name.ilike.%${debouncedSearchTerm}%,id.ilike.%${debouncedSearchTerm}%`);
-      }
+    if (debouncedSearchTerm) {
+      query = query.or(`name.ilike.%${debouncedSearchTerm}%,id.ilike.%${debouncedSearchTerm}%`);
+    }
 
-      const { data, error } = await query.order('name', { ascending: true });
+    const { data, error } = await query.order('name', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching patients:', error);
-        setPatients([]);
-      } else {
-        setPatients(data as Patient[]);
-      }
-      setLoading(false);
-    };
-
-    fetchPatients();
+    if (error) {
+      console.error('Error fetching patients:', error);
+      setPatients([]);
+    } else {
+      setPatients(data as Patient[]);
+    }
+    setLoading(false);
   }, [doctor, debouncedSearchTerm]);
+
+  useEffect(() => {
+    fetchPatients();
+  }, [fetchPatients]);
+
+  const handlePatientAdded = () => {
+    fetchPatients();
+    setIsModalOpen(false);
+  };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">{doctor ? 'My Patients' : 'All Patients'}</h2>
-        <button className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
+        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-primary-focus transition-colors">
           Add New Patient
         </button>
       </div>
@@ -117,6 +124,11 @@ const Patients: React.FC<PatientsProps> = ({ onViewPatient, doctor }) => {
           </table>
         </div>
       </div>
+      <PatientModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onPatientAdded={handlePatientAdded}
+      />
     </div>
   );
 };
