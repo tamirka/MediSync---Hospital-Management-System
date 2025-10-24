@@ -1,5 +1,6 @@
-import React from 'react';
-import { mockAppointments } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { Appointment } from '../types';
+import { supabase } from '../lib/supabaseClient';
 import { Patient } from '../types';
 import { AppointmentsIcon, PillIcon } from '../components/Icons';
 
@@ -24,7 +25,26 @@ const StatCard: React.FC<{ icon: React.ElementType, title: string, value: string
 );
 
 const PatientDashboard: React.FC<PatientDashboardProps> = ({ patient, setActivePage }) => {
-  const upcomingAppointments = mockAppointments.filter(a => a.patientId === patient.id && a.status === 'Scheduled');
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', patient.id)
+        .eq('status', 'Scheduled')
+        .order('date')
+        .order('time');
+
+      if (error) console.error("Error fetching appointments:", error);
+      else setUpcomingAppointments(data || []);
+      setLoading(false);
+    };
+    fetchAppointments();
+  }, [patient.id]);
 
   return (
     <div>
@@ -32,8 +52,8 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ patient, setActiveP
       <p className="text-gray-500 mb-6">Here's your personal health dashboard.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <StatCard icon={AppointmentsIcon} title="Upcoming Appointments" value={upcomingAppointments.length} description="View your scheduled visits" />
-        <StatCard icon={PillIcon} title="Current Medications" value={patient.currentMedications.length} description="View your prescription list" />
+        <StatCard icon={AppointmentsIcon} title="Upcoming Appointments" value={loading ? '...' : upcomingAppointments.length} description="View your scheduled visits" />
+        <StatCard icon={PillIcon} title="Current Medications" value={patient.current_medications.length} description="View your prescription list" />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -43,7 +63,9 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ patient, setActiveP
                 <button onClick={() => setActivePage('Appointments')} className="text-primary hover:underline text-sm font-medium">View All</button>
             </div>
             <div className="overflow-x-auto">
-            {upcomingAppointments.length > 0 ? (
+            {loading ? (
+                <p className="text-center text-gray-500 py-4">Loading appointments...</p>
+            ) : upcomingAppointments.length > 0 ? (
                 <table className="min-w-full text-sm">
                 <thead>
                     <tr className="text-left text-gray-500">
@@ -56,7 +78,7 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ patient, setActiveP
                     {upcomingAppointments.slice(0, 5).map(appt => (
                     <tr key={appt.id} className="border-t border-gray-200">
                         <td className="py-3 font-semibold">{appt.date}, {appt.time}</td>
-                        <td className="py-3">{appt.doctorName}</td>
+                        <td className="py-3">{appt.doctor_name}</td>
                         <td className="py-3 text-gray-600">{appt.reason}</td>
                     </tr>
                     ))}
@@ -73,9 +95,9 @@ const PatientDashboard: React.FC<PatientDashboardProps> = ({ patient, setActiveP
                 <h3 className="text-lg font-bold text-gray-800">Current Medications</h3>
                 <button onClick={() => setActivePage('Pharmacy')} className="text-primary hover:underline text-sm font-medium">View All</button>
             </div>
-            {patient.currentMedications.length > 0 ? (
+            {patient.current_medications.length > 0 ? (
                 <ul className="space-y-3">
-                    {patient.currentMedications.map(med => (
+                    {patient.current_medications.map(med => (
                         <li key={med.name} className="flex justify-between items-center p-3 bg-gray-50 rounded-md">
                             <span className="font-semibold text-gray-700">{med.name}</span>
                             <span className="text-sm text-gray-500">{med.dosage}</span>

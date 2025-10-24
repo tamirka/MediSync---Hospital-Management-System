@@ -1,6 +1,6 @@
-import React from 'react';
-import type { Patient } from '../types';
-import { mockPrescriptions } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import type { Patient, Prescription } from '../types';
+import { supabase } from '../lib/supabaseClient';
 import { PharmacyIcon } from '../components/Icons';
 
 interface PharmacyProps {
@@ -8,6 +8,30 @@ interface PharmacyProps {
 }
 
 const Pharmacy: React.FC<PharmacyProps> = ({ patient }) => {
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (patient) {
+      const fetchPrescriptions = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('prescriptions')
+          .select('*')
+          .eq('patient_id', patient.id)
+          .order('start_date', { ascending: false });
+        
+        if (error) {
+          console.error("Error fetching prescriptions:", error);
+        } else {
+          setPrescriptions(data as Prescription[]);
+        }
+        setLoading(false);
+      };
+      fetchPrescriptions();
+    }
+  }, [patient]);
+
   if (!patient) {
     // Admin view placeholder
     return (
@@ -20,8 +44,6 @@ const Pharmacy: React.FC<PharmacyProps> = ({ patient }) => {
         </div>
     );
   }
-
-  const patientPrescriptions = mockPrescriptions.filter(p => p.patientId === patient.id);
 
   return (
     <div>
@@ -44,15 +66,21 @@ const Pharmacy: React.FC<PharmacyProps> = ({ patient }) => {
               </tr>
             </thead>
             <tbody>
-              {patientPrescriptions.map((prescription) => (
-                <tr key={prescription.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{prescription.medication}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.dosage}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.frequency}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.startDate}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.endDate}</td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-4">Loading prescriptions...</td></tr>
+              ) : prescriptions.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-4">No prescriptions found.</td></tr>
+              ) : (
+                prescriptions.map((prescription) => (
+                  <tr key={prescription.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{prescription.medication}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.dosage}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.frequency}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.start_date}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{prescription.end_date}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

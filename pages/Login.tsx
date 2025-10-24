@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { mockDoctors, mockPatients } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { Doctor, Patient } from '../types';
 import { UserCircleIcon, DoctorsIcon, PatientsIcon } from '../components/Icons';
 
 interface LoginPageProps {
@@ -7,7 +8,31 @@ interface LoginPageProps {
 }
 
 const Login: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [selectedPatient, setSelectedPatient] = useState(mockPatients[0].id);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      const { data: patientsData, error: patientsError } = await supabase.from('patients').select('id, name');
+      const { data: doctorsData, error: doctorsError } = await supabase.from('doctors').select('id, name');
+
+      if (patientsData) {
+        setPatients(patientsData as Patient[]);
+        if (patientsData.length > 0) {
+          setSelectedPatient(patientsData[0].id);
+        }
+      }
+      if (doctorsData) {
+        setDoctors(doctorsData as Doctor[]);
+      }
+      setLoading(false);
+    };
+    fetchUsers();
+  }, []);
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -29,12 +54,13 @@ const Login: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
             </button>
             <button
-                onClick={() => onLogin('Doctor', mockDoctors[0].id)} // Logging in as Dr. Evelyn Reed
-                className="w-full flex items-center p-4 bg-slate-50 text-slate-800 rounded-lg shadow-sm hover:bg-slate-100 hover:shadow-md transition-all duration-300"
+                onClick={() => doctors.length > 0 && onLogin('Doctor', doctors[0].id)}
+                disabled={loading || doctors.length === 0}
+                className="w-full flex items-center p-4 bg-slate-50 text-slate-800 rounded-lg shadow-sm hover:bg-slate-100 hover:shadow-md transition-all duration-300 disabled:opacity-50"
             >
                 <DoctorsIcon className="w-8 h-8 mr-4"/>
                 <div>
-                    <h2 className="text-lg font-bold text-left">Login as Doctor ({mockDoctors[0].name})</h2>
+                    <h2 className="text-lg font-bold text-left">Login as Doctor ({loading ? '...' : doctors[0]?.name})</h2>
                     <p className="text-sm text-left text-gray-600">Access your personalized dashboard and patient list.</p>
                 </div>
             </button>
@@ -48,23 +74,25 @@ const Login: React.FC<LoginPageProps> = ({ onLogin }) => {
                         <p className="text-sm text-left text-gray-600">View your appointments, records, and bills.</p>
                     </div>
                 </div>
-                <div className="flex space-x-2">
-                    <select
-                        value={selectedPatient}
-                        onChange={(e) => setSelectedPatient(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                        {mockPatients.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                    </select>
-                    <button
-                        onClick={() => onLogin('Patient', selectedPatient)}
-                        className="px-4 py-2 bg-pink-500 text-white font-semibold rounded-lg hover:bg-pink-600 transition-colors"
-                    >
-                        Login
-                    </button>
-                </div>
+                {loading ? <p>Loading patients...</p> : (
+                  <div className="flex space-x-2">
+                      <select
+                          value={selectedPatient}
+                          onChange={(e) => setSelectedPatient(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                          {patients.map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                      </select>
+                      <button
+                          onClick={() => onLogin('Patient', selectedPatient)}
+                          className="px-4 py-2 bg-pink-500 text-white font-semibold rounded-lg hover:bg-pink-600 transition-colors"
+                      >
+                          Login
+                      </button>
+                  </div>
+                )}
             </div>
         </div>
       </div>

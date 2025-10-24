@@ -1,7 +1,6 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Doctor } from '../types';
-import { mockDoctors } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 
 const getStatusClass = (status: Doctor['status']) => {
   switch (status) {
@@ -19,7 +18,7 @@ const getStatusClass = (status: Doctor['status']) => {
 const DoctorCard: React.FC<{ doctor: Doctor }> = ({ doctor }) => (
   <div className="bg-white rounded-lg shadow-md p-6 flex flex-col items-center text-center transition-transform transform hover:-translate-y-1">
     <img
-      src={doctor.imageUrl}
+      src={doctor.image_url}
       alt={doctor.name}
       className="w-24 h-24 rounded-full mb-4 border-4 border-teal-200"
     />
@@ -32,6 +31,23 @@ const DoctorCard: React.FC<{ doctor: Doctor }> = ({ doctor }) => (
 );
 
 const Doctors: React.FC = () => {
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('doctors').select('*').order('name');
+      if (error) {
+        console.error('Error fetching doctors:', error);
+      } else {
+        setDoctors(data as Doctor[]);
+      }
+      setLoading(false);
+    };
+    fetchDoctors();
+  }, []);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -41,11 +57,15 @@ const Doctors: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {mockDoctors.map(doctor => (
-          <DoctorCard key={doctor.id} doctor={doctor} />
-        ))}
-      </div>
+      {loading ? (
+        <p>Loading doctors...</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {doctors.map(doctor => (
+            <DoctorCard key={doctor.id} doctor={doctor} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

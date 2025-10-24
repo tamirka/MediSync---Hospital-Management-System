@@ -13,8 +13,8 @@ import Reports from './pages/Reports';
 import PatientProfile from './pages/PatientProfile';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
-import { mockDoctors, mockPatients } from './data/mockData';
 import { User, Patient } from './types';
+import { supabase } from './lib/supabaseClient';
 
 type Page = 'Dashboard' | 'Patients' | 'Doctors' | 'Appointments' | 'Billing' | 'Pharmacy' | 'Reports' | 'PatientProfile';
 
@@ -34,18 +34,34 @@ const App: React.FC = () => {
     setActivePage('Patients');
   };
 
-  const handleLogin = (role: 'Admin' | 'Doctor' | 'Patient', id?: string) => {
+  const handleLogin = async (role: 'Admin' | 'Doctor' | 'Patient', id?: string) => {
     if (role === 'Admin') {
-      setCurrentUser({ role: 'Admin', name: 'Dr. Evelyn Reed', imageUrl: 'https://randomuser.me/api/portraits/women/68.jpg' });
+      setCurrentUser({ role: 'Admin', name: 'Dr. Evelyn Reed', image_url: 'https://randomuser.me/api/portraits/women/68.jpg' });
     } else if (role === 'Doctor' && id) {
-      const doctor = mockDoctors.find(d => d.id === id);
+      const { data: doctor, error } = await supabase.from('doctors').select('*').eq('id', id).single();
       if (doctor) {
         setCurrentUser({ role: 'Doctor', ...doctor });
+      } else {
+        console.error('Doctor not found:', error);
       }
     } else if (role === 'Patient' && id) {
-        const patient = mockPatients.find(p => p.id === id);
+        const { data: patient, error } = await supabase.from('patients').select('*').eq('id', id).single();
         if (patient) {
-            setCurrentUser({ role: 'Patient', ...patient });
+            // Fetch related data for a full profile
+            const { data: medical_history } = await supabase.from('medical_history').select('*').eq('patient_id', id);
+            const { data: lab_results } = await supabase.from('lab_results').select('*').eq('patient_id', id);
+            const { data: prescriptions } = await supabase.from('prescriptions').select('*').eq('patient_id', id);
+            
+            const fullPatientProfile: Patient = {
+                ...patient,
+                medical_history: medical_history || [],
+                lab_results: lab_results || [],
+                // This is a simplification. Logic for "current" medications might be more complex.
+                current_medications: prescriptions?.map(p => ({name: p.medication, dosage: p.dosage})) || []
+            }
+            setCurrentUser({ role: 'Patient', ...fullPatientProfile });
+        } else {
+            console.error('Patient not found:', error);
         }
     }
     setActivePage('Dashboard');

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Patient, BillingInvoice } from '../types';
-import { mockInvoices } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 import { BillingIcon } from '../components/Icons';
 
 interface BillingProps {
@@ -21,6 +21,30 @@ const getStatusClass = (status: BillingInvoice['status']) => {
 };
 
 const Billing: React.FC<BillingProps> = ({ patient }) => {
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (patient) {
+      const fetchInvoices = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('billing_invoices')
+          .select('*')
+          .eq('patient_id', patient.id)
+          .order('date', { ascending: false });
+        
+        if (error) {
+          console.error("Error fetching invoices:", error);
+        } else {
+          setInvoices(data as BillingInvoice[]);
+        }
+        setLoading(false);
+      };
+      fetchInvoices();
+    }
+  }, [patient]);
+
   if (!patient) {
     // Admin view placeholder
     return (
@@ -33,8 +57,6 @@ const Billing: React.FC<BillingProps> = ({ patient }) => {
       </div>
     );
   }
-
-  const patientInvoices = mockInvoices.filter(invoice => invoice.patientId === patient.id);
 
   return (
     <div>
@@ -58,22 +80,28 @@ const Billing: React.FC<BillingProps> = ({ patient }) => {
               </tr>
             </thead>
             <tbody>
-              {patientInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{invoice.id}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{invoice.date}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{invoice.service}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">${invoice.amount.toFixed(2)}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                    <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(invoice.status)}`}>
-                      {invoice.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                    {invoice.status !== 'Paid' && <button className="text-primary hover:text-primary-focus font-medium">Pay Now</button>}
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={6} className="text-center py-4">Loading invoices...</td></tr>
+              ) : invoices.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-4">No billing history found.</td></tr>
+              ) : (
+                invoices.map((invoice) => (
+                  <tr key={invoice.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{invoice.id}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{invoice.date}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{invoice.service}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">${invoice.amount.toFixed(2)}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
+                      <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(invoice.status)}`}>
+                        {invoice.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
+                      {invoice.status !== 'Paid' && <button className="text-primary hover:text-primary-focus font-medium">Pay Now</button>}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

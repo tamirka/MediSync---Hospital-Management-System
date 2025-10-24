@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Appointment, Doctor, Patient } from '../types';
-import { mockAppointments } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 
 const getStatusClass = (status: Appointment['status']) => {
   switch (status) {
@@ -22,19 +22,36 @@ interface AppointmentsProps {
 
 const Appointments: React.FC<AppointmentsProps> = ({ doctor, patient }) => {
   const [filter, setFilter] = useState('All');
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const appointmentList = useMemo(() => {
-    if (doctor) return mockAppointments.filter(a => a.doctorId === doctor.id);
-    if (patient) return mockAppointments.filter(a => a.patientId === patient.id);
-    return mockAppointments;
-  }, [doctor, patient]);
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      setLoading(true);
+      let query = supabase.from('appointments').select('*');
 
-  const filteredAppointments = useMemo(() => {
-    if (filter === 'All') {
-      return appointmentList;
-    }
-    return appointmentList.filter(a => a.status === filter);
-  }, [filter, appointmentList]);
+      if (doctor) {
+        query = query.eq('doctor_id', doctor.id);
+      }
+      if (patient) {
+        query = query.eq('patient_id', patient.id);
+      }
+      if (filter !== 'All') {
+        query = query.eq('status', filter);
+      }
+
+      const { data, error } = await query.order('date', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching appointments:", error);
+      } else {
+        setAppointments(data as Appointment[]);
+      }
+      setLoading(false);
+    };
+
+    fetchAppointments();
+  }, [doctor, patient, filter]);
 
   const getTitle = () => {
     if (doctor) return 'My Appointments';
@@ -83,19 +100,25 @@ const Appointments: React.FC<AppointmentsProps> = ({ doctor, patient }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredAppointments.map((appt) => (
-                <tr key={appt.id} className="hover:bg-gray-50">
-                   <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{patient ? appt.doctorName : appt.patientName}</td>
-                  {!doctor && !patient && <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.doctorName}</td>}
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.date} - {appt.time}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.reason}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                    <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(appt.status)}`}>
-                      {appt.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-4">Loading appointments...</td></tr>
+              ) : appointments.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-4">No appointments found.</td></tr>
+              ) : (
+                appointments.map((appt) => (
+                  <tr key={appt.id} className="hover:bg-gray-50">
+                     <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{patient ? appt.doctor_name : appt.patient_name}</td>
+                    {!doctor && !patient && <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.doctor_name}</td>}
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.date} - {appt.time}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{appt.reason}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
+                      <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(appt.status)}`}>
+                        {appt.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

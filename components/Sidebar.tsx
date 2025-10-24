@@ -10,6 +10,13 @@ interface SidebarProps {
   userRole: UserRole;
 }
 
+// FIX: Define a type for navigation items to ensure type safety for the 'page' property.
+interface NavItemType {
+  icon: React.ElementType;
+  label: string;
+  page: Page;
+}
+
 const NavItem: React.FC<{
   icon: React.ElementType;
   label: string;
@@ -37,7 +44,8 @@ const NavItem: React.FC<{
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, userRole }) => {
   
-  const adminNavItems = [
+  // FIX: Apply the NavItemType to ensure page property is of type Page.
+  const adminNavItems: NavItemType[] = [
     { icon: DashboardIcon, label: 'Dashboard', page: 'Dashboard' },
     { icon: PatientsIcon, label: 'Patients', page: 'Patients' },
     { icon: DoctorsIcon, label: 'Doctors', page: 'Doctors' },
@@ -47,13 +55,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, userRole }
     { icon: ReportsIcon, label: 'Reports', page: 'Reports' },
   ];
   
-  const doctorNavItems = [
+  // FIX: Apply the NavItemType to ensure page property is of type Page.
+  const doctorNavItems: NavItemType[] = [
     { icon: DashboardIcon, label: 'My Dashboard', page: 'Dashboard' },
     { icon: PatientsIcon, label: 'My Patients', page: 'Patients' },
     { icon: AppointmentsIcon, label: 'My Appointments', page: 'Appointments' },
   ];
 
-  const patientNavItems = [
+  // FIX: Apply the NavItemType to ensure page property is of type Page.
+  const patientNavItems: NavItemType[] = [
     { icon: DashboardIcon, label: 'My Dashboard', page: 'Dashboard' },
     { icon: AppointmentsIcon, label: 'My Appointments', page: 'Appointments' },
     { icon: UserCircleIcon, label: 'My Medical Records', page: 'PatientProfile' },

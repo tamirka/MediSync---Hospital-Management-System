@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { mockPatients, mockPrescriptions } from '../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import { Patient, Prescription, LabResult, MedicalHistoryEvent } from '../types';
 import { ArrowLeftIcon, ClipboardListIcon, BeakerIcon, PillIcon, UserCircleIcon } from '../components/Icons';
 
@@ -29,9 +29,46 @@ const TabButton: React.FC<{
 
 const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onBack, isSelfView = false }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const patient = useMemo(() => mockPatients.find(p => p.id === patientId), [patientId]);
-  const prescriptions = useMemo(() => mockPrescriptions.filter(p => p.patientId === patientId), [patientId]);
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      if (!patientId) return;
+      setLoading(true);
+
+      const { data: patientData, error: patientError } = await supabase.from('patients').select('*').eq('id', patientId).single();
+      
+      if (patientError || !patientData) {
+        console.error("Error fetching patient:", patientError);
+        setPatient(null);
+        setLoading(false);
+        return;
+      }
+      
+      const { data: historyData } = await supabase.from('medical_history').select('*').eq('patient_id', patientId);
+      const { data: labData } = await supabase.from('lab_results').select('*').eq('patient_id', patientId);
+      const { data: prescriptionData } = await supabase.from('prescriptions').select('*').eq('patient_id', patientId);
+
+      const fullPatientProfile: Patient = {
+          ...patientData,
+          medical_history: historyData || [],
+          lab_results: labData || [],
+          current_medications: prescriptionData?.map(p => ({name: p.medication, dosage: p.dosage})) || [],
+      };
+
+      setPatient(fullPatientProfile);
+      setPrescriptions(prescriptionData || []);
+      setLoading(false);
+    };
+
+    fetchPatientData();
+  }, [patientId]);
+
+  if (loading) {
+      return <div>Loading patient profile...</div>;
+  }
 
   if (!patient) {
     return (
@@ -47,9 +84,9 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onBack, isSe
   const renderTabContent = () => {
     switch (activeTab) {
         case 'history':
-            return <MedicalHistoryTab history={patient.medicalHistory} />;
+            return <MedicalHistoryTab history={patient.medical_history} />;
         case 'labs':
-            return <LabResultsTab results={patient.labResults} />;
+            return <LabResultsTab results={patient.lab_results} />;
         case 'prescriptions':
             return <PrescriptionsTab prescriptions={prescriptions} />;
         case 'overview':
@@ -70,7 +107,7 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onBack, isSe
         )}
       
       <div className="bg-white rounded-xl shadow-md p-6 mb-6 flex items-center">
-        <img src={patient.imageUrl} alt={patient.name} className="w-24 h-24 rounded-full border-4 border-teal-200 mr-6"/>
+        <img src={patient.image_url} alt={patient.name} className="w-24 h-24 rounded-full border-4 border-teal-200 mr-6"/>
         <div>
             <h2 className="text-3xl font-bold text-gray-800">{isSelfView ? 'My Medical Records' : patient.name}</h2>
             <p className="text-gray-500">Patient ID: {patient.id}</p>
@@ -88,15 +125,15 @@ const PatientProfile: React.FC<PatientProfileProps> = ({ patientId, onBack, isSe
             <InfoCard title="Personal Information" icon={UserCircleIcon}>
                 <InfoItem label="Gender" value={patient.gender} />
                 <InfoItem label="Age" value={patient.age.toString()} />
-                <InfoItem label="Blood Type" value={patient.bloodType} />
+                <InfoItem label="Blood Type" value={patient.blood_type} />
                 <InfoItem label="Phone" value={patient.phone} />
                 <InfoItem label="Email" value={patient.email} />
                 <InfoItem label="Address" value={patient.address} />
             </InfoCard>
             <InfoCard title="Emergency Contact" icon={UserCircleIcon}>
-                 <InfoItem label="Name" value={patient.emergencyContact.name} />
-                 <InfoItem label="Relationship" value={patient.emergencyContact.relationship} />
-                 <InfoItem label="Phone" value={patient.emergencyContact.phone} />
+                 <InfoItem label="Name" value={patient.emergency_contact.name} />
+                 <InfoItem label="Relationship" value={patient.emergency_contact.relationship} />
+                 <InfoItem label="Phone" value={patient.emergency_contact.phone} />
             </InfoCard>
         </div>
 
@@ -147,17 +184,17 @@ const OverviewTab: React.FC<{patient: Patient}> = ({patient}) => (
         </div>
         <div>
             <h4 className="font-semibold text-gray-700 mb-2">Chronic Conditions</h4>
-            {patient.chronicConditions.length > 0 ? (
+            {patient.chronic_conditions.length > 0 ? (
                  <div className="flex flex-wrap gap-2">
-                    {patient.chronicConditions.map(condition => <span key={condition} className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">{condition}</span>)}
+                    {patient.chronic_conditions.map(condition => <span key={condition} className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full">{condition}</span>)}
                  </div>
             ) : <p className="text-sm text-gray-500">No chronic conditions listed.</p>}
         </div>
          <div>
             <h4 className="font-semibold text-gray-700 mb-2">Current Medications</h4>
-            {patient.currentMedications.length > 0 ? (
+            {patient.current_medications.length > 0 ? (
                 <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
-                    {patient.currentMedications.map(med => <li key={med.name}>{med.name} ({med.dosage})</li>)}
+                    {patient.current_medications.map(med => <li key={med.name}>{med.name} ({med.dosage})</li>)}
                 </ul>
             ) : <p className="text-sm text-gray-500">No current medications.</p>}
         </div>
@@ -167,7 +204,7 @@ const OverviewTab: React.FC<{patient: Patient}> = ({patient}) => (
 const MedicalHistoryTab: React.FC<{history: MedicalHistoryEvent[]}> = ({history}) => (
     <div className="space-y-4">
         {history.length > 0 ? history.map((item, index) => (
-            <div key={index} className="p-4 bg-gray-50 rounded-lg">
+            <div key={item.id || index} className="p-4 bg-gray-50 rounded-lg">
                 <p className="font-semibold text-gray-800">{item.event}</p>
                 <p className="text-sm text-gray-600">{item.details}</p>
                 <p className="text-xs text-gray-400 mt-2">{item.date} - with {item.doctor}</p>
@@ -192,8 +229,8 @@ const LabResultsTab: React.FC<{results: LabResult[]}> = ({results}) => (
                 {results.map(res => (
                     <tr key={res.id} className="border-b border-gray-200 hover:bg-gray-50">
                         <td className="px-4 py-2">{res.date}</td>
-                        <td className="px-4 py-2 font-medium">{res.testName}</td>
-                        <td className="px-4 py-2">{res.result} <span className="text-gray-400 text-xs">({res.referenceRange})</span></td>
+                        <td className="px-4 py-2 font-medium">{res.test_name}</td>
+                        <td className="px-4 py-2">{res.result} <span className="text-gray-400 text-xs">({res.reference_range})</span></td>
                         <td className="px-4 py-2">
                            <span className={`px-2 py-1 text-xs rounded-full ${res.status === 'Normal' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{res.status}</span>
                         </td>
@@ -223,7 +260,7 @@ const PrescriptionsTab: React.FC<{prescriptions: Prescription[]}> = ({prescripti
                         <td className="px-4 py-3 font-medium">{p.medication}</td>
                         <td className="px-4 py-3">{p.dosage}</td>
                         <td className="px-4 py-3">{p.frequency}</td>
-                        <td className="px-4 py-3">{p.startDate} to {p.endDate}</td>
+                        <td className="px-4 py-3">{p.start_date} to {p.end_date}</td>
                     </tr>
                 ))}
             </tbody>

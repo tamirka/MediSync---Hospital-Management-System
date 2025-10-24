@@ -33,7 +33,7 @@ const Header: React.FC<HeaderProps> = ({ activePage, user, onLogout }) => {
         </div>
         <div className="flex items-center">
           <img
-            src={user.imageUrl}
+            src={user.image_url}
             alt="User Avatar"
             className="w-10 h-10 rounded-full"
           />

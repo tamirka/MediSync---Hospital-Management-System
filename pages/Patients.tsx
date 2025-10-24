@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Patient, Doctor } from '../types';
-import { mockPatients } from '../data/mockData';
+import { supabase } from '../lib/supabaseClient';
 import useDebounce from '../hooks/useDebounce';
 
 const getStatusClass = (status: Patient['status']) => {
@@ -23,18 +23,36 @@ interface PatientsProps {
 
 const Patients: React.FC<PatientsProps> = ({ onViewPatient, doctor }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  const patientList = useMemo(() => {
-    return doctor ? mockPatients.filter(p => p.primaryDoctorId === doctor.id) : mockPatients;
-  }, [doctor]);
+  useEffect(() => {
+    const fetchPatients = async () => {
+      setLoading(true);
+      let query = supabase.from('patients').select('*');
+      
+      if (doctor) {
+        query = query.eq('primary_doctor_id', doctor.id);
+      }
 
-  const filteredPatients = useMemo(() => {
-    return patientList.filter(patient =>
-      patient.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-      patient.id.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
-    );
-  }, [debouncedSearchTerm, patientList]);
+      if (debouncedSearchTerm) {
+        query = query.or(`name.ilike.%${debouncedSearchTerm}%,id.ilike.%${debouncedSearchTerm}%`);
+      }
+
+      const { data, error } = await query.order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching patients:', error);
+        setPatients([]);
+      } else {
+        setPatients(data as Patient[]);
+      }
+      setLoading(false);
+    };
+
+    fetchPatients();
+  }, [doctor, debouncedSearchTerm]);
 
   return (
     <div>
@@ -71,24 +89,30 @@ const Patients: React.FC<PatientsProps> = ({ onViewPatient, doctor }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredPatients.map((patient) => (
-                <tr key={patient.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.id}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{patient.name}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.age}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.gender}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.bloodType}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.lastVisit}</td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                    <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(patient.status)}`}>
-                      {patient.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
-                    <button onClick={() => onViewPatient(patient.id)} className="text-primary hover:text-primary-focus font-medium">View Details</button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={8} className="text-center py-4">Loading patients...</td></tr>
+              ) : patients.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-4">No patients found.</td></tr>
+              ) : (
+                patients.map((patient) => (
+                  <tr key={patient.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.id}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm font-semibold">{patient.name}</td>
+                    <td className="px-5 py-4 border-b border-ray-200 bg-white text-sm">{patient.age}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.gender}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.blood_type}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">{patient.last_visit}</td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
+                      <span className={`px-2 py-1 font-semibold leading-tight rounded-full text-xs ${getStatusClass(patient.status)}`}>
+                        {patient.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 border-b border-gray-200 bg-white text-sm">
+                      <button onClick={() => onViewPatient(patient.id)} className="text-primary hover:text-primary-focus font-medium">View Details</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

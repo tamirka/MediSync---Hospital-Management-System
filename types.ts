@@ -1,4 +1,6 @@
 export interface MedicalHistoryEvent {
+  id: string;
+  patient_id: string;
   date: string;
   event: string;
   details: string;
@@ -7,11 +9,11 @@ export interface MedicalHistoryEvent {
 
 export interface LabResult {
   id: string;
-  patientId: string;
+  patient_id: string;
   date: string;
-  testName: string;
+  test_name: string;
   result: string;
-  referenceRange: string;
+  reference_range: string;
   status: 'Normal' | 'Abnormal';
 }
 
@@ -20,27 +22,27 @@ export interface Patient {
   name: string;
   age: number;
   gender: 'Male' | 'Female' | 'Other';
-  bloodType: string;
-  lastVisit: string;
+  blood_type: string;
+  last_visit: string;
   status: 'Stable' | 'Recovering' | 'Critical';
-  imageUrl: string;
+  image_url: string;
   phone: string;
   email: string;
   address: string;
-  emergencyContact: {
+  emergency_contact: {
     name: string;
     relationship: string;
     phone: string;
   };
   allergies: string[];
-  chronicConditions: string[];
-  currentMedications: {
+  chronic_conditions: string[];
+  current_medications: {
     name: string;
     dosage: string;
   }[];
-  medicalHistory: MedicalHistoryEvent[];
-  labResults: LabResult[];
-  primaryDoctorId: string;
+  medical_history: MedicalHistoryEvent[];
+  lab_results: LabResult[];
+  primary_doctor_id: string;
 }
 
 export interface Doctor {
@@ -48,25 +50,25 @@ export interface Doctor {
   name: string;
   specialty: string;
   status: 'Available' | 'On-call' | 'Away';
-  imageUrl: string;
+  image_url: string;
 }
 
 export interface Prescription {
   id: string;
-  patientId: string;
+  patient_id: string;
   medication: string;
   dosage: string;
   frequency: string;
-  startDate: string;
-  endDate: string;
+  start_date: string;
+  end_date: string;
 }
 
 export interface Appointment {
   id: string;
-  patientId: string;
-  patientName: string;
-  doctorId: string;
-  doctorName: string;
+  patient_id: string;
+  patient_name: string;
+  doctor_id: string;
+  doctor_name: string;
   date: string;
   time: string;
   reason: string;
@@ -75,7 +77,7 @@ export interface Appointment {
 
 export interface BillingInvoice {
     id: string;
-    patientId: string;
+    patient_id: string;
     date: string;
     service: string;
     amount: number;
@@ -86,4 +88,4 @@ export interface BillingInvoice {
 export type User = 
   | (Doctor & { role: 'Doctor' })
   | (Patient & { role: 'Patient' })
-  | { role: 'Admin'; name: string; imageUrl: string };
+  | { role: 'Admin'; name: string; image_url: string };
